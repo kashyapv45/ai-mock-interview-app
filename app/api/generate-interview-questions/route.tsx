@@ -1,0 +1,79 @@
+import { aj } from "@/app/utils/arcjet";
+import { currentUser } from "@clerk/nextjs/server";
+import axios from "axios";
+import ImageKit from "imagekit";
+import { s } from "motion/react-client";
+import { NextRequest, NextResponse } from "next/server";
+
+var imagekit = new ImageKit({
+    publicKey : process.env.IMAGEKIT_URL_PUBLIC_KEY!,
+    privateKey : process.env.IMAGEKIT_URL_PRIVATE_KEY!,
+    urlEndpoint : process.env.IMAGEKIT_URL_ENDPOINT!
+});
+
+export async function POST (req:NextRequest) {
+    try{
+
+    const user=await currentUser();
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+    const jobTitle = formData.get('jobTitle') as File;
+    const jobDescription = formData.get('jobDescription') as File;
+    const decision = await aj.protect(req, { userId:user?.primaryEmailAddress?.emailAddress??'', requested: 5 }); // Deduct 5 tokens from the bucket
+    console.log("Arcjet decision", decision);
+
+
+    //@ts-ignore
+        if(decision?.reason?.remaining==0){
+        return NextResponse.json({
+            status:429,
+            result:'Not enough credits to generate interview questions. Please upgrade your plan or wait for 24 hours for credits to refill.'
+        })
+        }
+
+    if(file){
+        const bytes = await file.arrayBuffer();
+    const buffer= Buffer.from(bytes);
+
+        const uploadResponse = await imagekit.upload({
+            file : buffer,
+            fileName : `upload-${Date.now()}.pdf`,
+            isPrivateFile: false,
+            useUniqueFileName: true,
+            
+            
+        });
+    
+    
+
+        // Call n8n Webhook
+
+        const result = await axios.post('http://localhost:5678/webhook/0ea96a56-5c11-47c9-ba31-f4c4209b9476',{
+            resumeUrl: uploadResponse?.url
+        });
+        console.log(result.data);
+
+        return NextResponse.json({
+            questions:result.data,
+            resumeUrl:uploadResponse?.url,
+            status:200
+        });
+    }else{
+        const result = await axios.post('http://localhost:5678/webhook/0ea96a56-5c11-47c9-ba31-f4c4209b9476',{
+            resumeUrl: null,
+            jobTitle: jobTitle,
+            jobDescription: jobDescription
+        });
+        console.log(result.data);
+
+        return NextResponse.json({
+            questions:result.data,
+            resumeUrl:null
+        });
+    }
+    
+}catch(e){
+        console.log(e);
+        return NextResponse.json({error:"Error generating interview questions"}, {status:500});
+    }
+}
