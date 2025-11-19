@@ -33,3 +33,32 @@ export const GetInterviewQuestions=query({
         return result;
     }
 })
+
+
+export const UpdateFeedback=mutation({
+    args:{
+        recordId:v.id("InterviewSession"),
+        feedback:v.any(),
+    },
+    handler:async(ctx, args)=>{
+        const result=await ctx.db.patch(args.recordId,{
+            feedback:args.feedback,
+            status:"completed",
+        })
+        return result;
+    }
+})
+
+
+export const GetUserInterviews=query({
+    args:{
+        uid:v.id("UserTable"),
+    },
+    handler:async(ctx, args)=>{
+        const result=await ctx.db.query("InterviewSession")
+        .filter(q=>q.eq(q.field('userId'),args.uid))
+        .order('desc')
+        .collect();
+        return result;
+    }
+})
