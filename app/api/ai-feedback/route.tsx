@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const { conversation } = await req.json();
 
   console.log('Received conversation for feedback:', conversation);
-  const result= await axios.post('http://localhost:5678/webhook/5bf5b6e5-0031-46d1-815d-617aa3da225d', {
+  const result= await axios.post(process.env.N8N_FEEDBACK_WEBHOOK_URL || 'http://localhost:5678/webhook/5bf5b6e5-0031-46d1-815d-617aa3da225d', {
 
     conversation:JSON.stringify(conversation),
 

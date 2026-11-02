@@ -4,12 +4,6 @@ import axios from "axios";
 import ImageKit from "imagekit";
 import { NextRequest, NextResponse } from "next/server";
 
-var imagekit = new ImageKit({
-    publicKey : process.env.IMAGEKIT_URL_PUBLIC_KEY!,
-    privateKey : process.env.IMAGEKIT_URL_PRIVATE_KEY!,
-    urlEndpoint : process.env.IMAGEKIT_URL_ENDPOINT!
-});
-
 export async function POST (req:NextRequest) {
     try{
 
@@ -38,6 +32,13 @@ export async function POST (req:NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer= Buffer.from(bytes);
 
+        // Created per request because the build runs this file without the keys.
+        const imagekit = new ImageKit({
+            publicKey : process.env.IMAGEKIT_URL_PUBLIC_KEY!,
+            privateKey : process.env.IMAGEKIT_URL_PRIVATE_KEY!,
+            urlEndpoint : process.env.IMAGEKIT_URL_ENDPOINT!
+        });
+
         const uploadResponse = await imagekit.upload({
             file : buffer,
             fileName : `upload-${Date.now()}.pdf`,
@@ -45,7 +46,7 @@ export async function POST (req:NextRequest) {
             useUniqueFileName: true,
         });
 
-        const result = await axios.post('http://localhost:5678/webhook/0ea96a56-5c11-47c9-ba31-f4c4209b9476',{
+        const result = await axios.post(process.env.N8N_QUESTIONS_WEBHOOK_URL || 'http://localhost:5678/webhook/0ea96a56-5c11-47c9-ba31-f4c4209b9476',{
             resumeUrl: uploadResponse?.url,
             jobTitle: jobTitle,
             jobDescription: jobDescription
